@@ -17,6 +17,17 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+/**
+ * Created by DW / Development finished on 04/04/2017
+ * 
+ * TODO: 
+ * 1) Add support for closing a file if it is currently being used
+ * 2) Add support for custom styling of cells
+ * 3) Set the correct data types in columns currently this outputs to string
+ * 
+ * @author DarrenW
+ *
+ */
 
 public class RSToExcel 
 {
