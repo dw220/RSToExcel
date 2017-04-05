@@ -1,15 +1,25 @@
-package Main;
-
+import java.awt.Dimension;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-
+import java.util.Calendar;
+import javax.imageio.ImageIO;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -21,32 +31,127 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-/**
- * Created by DW / Development finished on 04/04/2017
- * 
- * TODO: 
- * 
- * 1) Add support for closing a file if it is currently being used
- * 2) Add support for custom styling of cells
- * 3) Set the correct data types in columns currently this outputs to string
- * 4) Get result set metadata can be set globaly
- * 
- * @author DarrenW
- */
-
-public final class RSToExcel 
-{
-	
+public final class C 
+{	
 	static private int colCount = 0;
 	static private ResultSetMetaData rsMeta = null;
+	
+	private C()
+	{
+		String err = "Object creation is not allowed on this class";
+		throw new RuntimeException( err ); 
+	}
+	
 	/**
-	 * Set to private to ensure that an instance can not be create
+	 * Method for trying and parsing various date records
+	 * this should be changed to be more efficent as having
+	 * multiple try catch bocks are quite expensive
+	 * 
+	 * It works by systematiccaly trying to parse a date string
+	 * using different formats until the correct one is found
+	 * 
+	 * @param date
+	 * @return
 	 */
-	private RSToExcel()
+	public static LocalDate tryParse( String date )
 	{		
-		String error = "RSToExcel is meant to run as a static class";
-		throw new RuntimeException(error);		
+		LocalDate ld = null;
+		
+		try	{  ld = LocalDate.parse( date , DateTimeFormatter.ofPattern( "dd-MM-yyyy" ) );return ld;} 
+		catch( Exception e ) {};
+		
+		try	{  ld = LocalDate.parse( date , DateTimeFormatter.ofPattern( "dd-MMM-yyyy" ) );return ld;} 
+		catch( Exception e ) {};
+		
+		try	{  ld = LocalDate.parse( date , DateTimeFormatter.ofPattern( "MMM-dd-yyyy" ) );return ld;} 
+		catch( Exception e ) {};
+		
+		try	{  ld = LocalDate.parse( date , DateTimeFormatter.ofPattern( "MM-dd-yyyy" ) );return ld;} 
+		catch( Exception e ) {};	
+		
+		try	{  ld = LocalDate.parse( date , DateTimeFormatter.ofPattern( "yyyy-MMM-dd" ) );return ld;} 
+		catch( Exception e ) {};
+		
+		try	{  ld = LocalDate.parse( date , DateTimeFormatter.ofPattern( "yyyy-MM-dd" ) ) ;return ld;} 
+		catch( Exception e ) {};
+				
+		return ld;		
+	}
+	
+	/**
+	 * Returns the current date
+	 * @return
+	 */
+	public static LocalDate currentDate() {		
+		return LocalDate.now();		
+	}
+	
+	/**
+	 * Indents quotes to a string, example:
+	 * 
+	 * String s = C.iQuote( "Hello World" )
+	 * 
+	 * s will be equal to "Hello World" // Quotes are apart of string
+	 * 
+	 */
+	public static String addQuotes(String s){
+		return "\" "+ s + "\"";		
+	}
+	
+	/**
+	 * 
+	 * Creates a timestamp of the current time and date
+	 * @deprecated This should not be used, timestamps should be created in the DB
+	 * @return
+	 * 
+	 */
+	public static Timestamp getTimeStamp()
+	{
+		// Calendar information
+		Calendar calendar 		= Calendar.getInstance();
+		java.util.Date now 		= calendar.getTime();
+		Timestamp dbStamp 		= new Timestamp(now.getTime());
+		return dbStamp;
 	}	
+	
+	/**
+	 * works with format hh:mm:ss
+	 * @param pTime
+	 * @return
+	 */
+	public static String StringToTime( String pTime )
+	{		
+		if( pTime.length() < 4  ){
+			return "";
+		}		
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern( "hh:mm:ss" );
+		return LocalTime.parse(pTime, dtf ).toString();
+	}	
+
+	/**
+	 * 
+	 * @param s
+	 * @return
+	 */
+	public static String emptyStringToNull( String s ){
+		if( s.length() == 0 )
+			return null;
+		else
+			return s;
+	}	
+	
+	/**
+	 * This method checks to see if we are in the debugger or not
+	 * please remeber you being in the IDE is not the same as being
+	 * in the IDE and executing the program by pressing the DEBUG button
+	 * @return
+	 */
+	public static Boolean IDE()
+	{
+		boolean isDebug = java.lang.management.ManagementFactory.getRuntimeMXBean().
+		getInputArguments().toString().indexOf("-agentlib:jdwp") > 0;
+		return isDebug;
+	}
 	
 	/**
 	 * 
@@ -293,11 +398,11 @@ public final class RSToExcel
 	}
 	
 	/**
-	 * Shell out and open the file with the run time
+	 * Shells out and open the file with the run time
 	 * @param filePath
 	 * @return
 	 */
-	private  static boolean openFile( String filePath ) 
+	public static boolean openFile( String filePath ) 
 	{		
 		// DW cmdString to shell out with, this opens a file
 		String cmdString = "rundll32 url.dll,FileProtocolHandler " + filePath;	
@@ -316,7 +421,50 @@ public final class RSToExcel
 		return true;		
 	}
 	
+	/**
+	 * Fast File copy mechanism - moves one file to another
+	 * @param in
+	 * @param out
+	 * @throws IOException
+	 */
+	public static void fileCopy( File in, File out )
+            throws IOException
+    {
+        FileChannel inChannel = new FileInputStream( in ).getChannel();
+        FileChannel outChannel = new FileOutputStream( out ).getChannel();
+        try
+        {
+            // magic number for Windows, 64Mb - 32Kb)
+            int maxCount = (64 * 1024 * 1024) - (32 * 1024);
+            long size = inChannel.size();
+            long position = 0;
+            while ( position < size )
+            {
+               position += inChannel.transferTo( position, maxCount, outChannel );
+            }
+        }
+        finally {
+            if ( inChannel != null ) { inChannel.close(); }
+            if ( outChannel != null ){ outChannel.close();}
+        }
+    }
 	
+	/**
+	 * 
+	 * Caputres a screen shot for use with debugging
+	 * 
+	 * @param fileName
+	 * @throws Exception
+	 */
+	public void captureScreen(String fileName) 
+			throws Exception 
+	{
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		Rectangle screenRectangle = new Rectangle(screenSize);
+		Robot robot = new Robot();
+		BufferedImage image = robot.createScreenCapture(screenRectangle);
+		ImageIO.write(image, "png", new File(fileName));
+	}
 	
 	
 }

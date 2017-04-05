@@ -17,7 +17,42 @@
     </plugins>
   </build>
   
+  <repositories>
+    <repository>
+        <id>artifactory</id>
+        <url>http://TP-CI-01:8081/artifactory/libs-release</url>
+        <snapshots>
+            <enabled>false</enabled>
+        </snapshots>
+    </repository>
+    <repository>
+        <id>artisnaps</id>
+        <url>http://TP-CI-01:8081/artifactory/libs-snapshot</url>
+        <releases>
+            <enabled>false</enabled>
+        </releases>
+    </repository>
+	</repositories>
+  
+       <distributionManagement>
+    <repository>
+      <name>artifactory</name>
+      <id>artifactory</id>
+      <url>http://TP-CI-01:8081/artifactory/libs-release-local</url>
+    </repository>
+    <snapshotRepository>
+      <name>artifactory</name>
+      <id>artisnaps</id>
+      <uniqueVersion>false</uniqueVersion>
+      <url>http://TP-CI-01:8081/artifactory/libs-snapshot-local</url>
+    </snapshotRepository>
+  </distributionManagement>
+  
+  
   <dependencies>
+  
+
+  
   
 	<!-- https://mvnrepository.com/artifact/postgresql/postgresql -->
 	<dependency>
@@ -33,6 +68,12 @@
 	    <version>3.9</version>
 	</dependency>
 		
+	<dependency>
+  		<groupId>junit</groupId>     <!-- NOT org.junit here -->
+  		<artifactId>junit-dep</artifactId>
+  		<version>4.8.2</version>
+	</dependency>	
+
   </dependencies>
   
 </project>
